@@ -41,8 +41,44 @@ with DAG(
 ) as dag:
     def get_data(ds_nodash):
         from mov.api.call import get_key,save2df
-        df=save2df(ds_nodash)
+        df,url = save2df(ds_nodash)
         print(df.head(5))
+
+    def fun_multi_y(ds_nodash):
+        from mov.api.call import save2df
+        p = {"multiMovieYn" : "Y"}
+        #df,url = save2df(load_dt=ds_nodash, url_param=p)
+        df,url = save2df(load_dt=ds_nodash, url_param=p)
+        print(df.head(5))
+        print(url)
+
+    def fun_multi_n(ds_nodash):
+        from mov.api.call import save2df
+        p = {"multiMovieYn" : "N"}
+        df,url = save2df(load_dt=ds_nodash, url_param=p)
+        print(df.head(5))
+
+    def fun_nation_k(ds_nodash):
+        from mov.api.call import save2df
+        p = {"repNationCd" : "K"}
+        df,url = save2df(load_dt=ds_nodash, url_param=p)
+        print(df.head(5))
+
+    def fun_nation_f(ds_nodash):
+        from mov.api.call import save2df
+        p = {"repNationCd" : "F"}
+        df,url = save2df(load_dt=ds_nodash, url_param=p)
+        print(df.head(5))
+
+
+    def common_get_data(dt, p={}):
+        from mov.api.call import save2df
+        df,url = save2df(load_dt=dt, url_param=p)
+        print(df.head(5))
+        print(url)
+        #print(f"load_date: {load_dt}")
+        #print(f"dict: {url_param}")
+
 
 
     def save_data(ds_nodash):
@@ -85,15 +121,14 @@ with DAG(
     )
 
     #run_this = PythonOperator(
-    #        task_id="print_the_context",
-    #        python_callable=print_context
-    #)
+        #task_id="print_the_co 
 
     get_data = PythonVirtualenvOperator(
             task_id='get.data',
-            python_callable=get_data,
-            requirements=["git+https://github.com/sooj1n/mov.git@0.2/api"],
+            python_callable=common_get_data,
+            requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
             system_site_packages=False,
+            op_args=["{{ds_nodash}}"]
             #venv_cache_path="/home/sujin/tmp2/air_venv/get_data"
     )
     
@@ -103,10 +138,10 @@ with DAG(
     task_start= gen_emp('start')
     task_end = gen_emp('end', rule='all_done')
 
-    multi_y = EmptyOperator(task_id='multi.y') # 다양성 영화 유무
-    multi_n = EmptyOperator(task_id='multi.n') 
-    nation_k = EmptyOperator(task_id='nation.k') # 한국영화 
-    nation_f = EmptyOperator(task_id='nation.f') # 외국영화
+    #multi_y = EmptyOperator(task_id='multi.y') # 다양성 영화 유무
+    #multi_n = EmptyOperator(task_id='multi.n') 
+    #nation_k = EmptyOperator(task_id='nation.k') # 한국영화 
+    #nation_f = EmptyOperator(task_id='nation.f') # 외국영화
 
 
     throw_err= BashOperator(
@@ -124,10 +159,46 @@ with DAG(
         requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
         #venv_cache_path="/home/sujin/tmp2/air_venv/get_data"
     )
+   
+    #다양성 영화 유무
+    multi_y = PythonVirtualenvOperator(
+        task_id="multi.y",
+        python_callable=common_get_data,
+        system_site_packages=False,
+        requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
+        op_args=["{{ds_nodash}}"],
+        op_kwargs={"p" : {"multiMovieYn": "Y"}}
+    )
+    multi_n = PythonVirtualenvOperator(
+        task_id="multi.n",
+        python_callable=common_get_data,
+        system_site_packages=False,
+        requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
+        op_args=["{{ds_nodash}}"],
+        op_kwargs={"p" : {"multiMovieYn": "N"}}
+    )
+    #한국영화 
+    nation_k = PythonVirtualenvOperator(
+        task_id="nation.k",
+        python_callable=common_get_data,
+        system_site_packages=False,
+        requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
+        op_args=["{{ds_nodash}}"],
+        op_kwargs={"p" : {"repNationCd": "K"}}
+    )
+
+    nation_f = PythonVirtualenvOperator(
+        task_id="nation.f",
+        python_callable=common_get_data,
+        system_site_packages=False,
+        requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
+        op_args=["{{ds_nodash}}"],
+        op_kwargs={"p" : {"repNationCd": "F"}}
+    )
 
     rm_dir = BashOperator(
             task_id='rm.dir',
-            bash_command='rm -rf ~/tmp/test_parquet/load_dt=={{ ds_nodash }}'
+            bash_command='rm -rf ~/tmp/test_parquet/load_dt={{ ds_nodash }}'
     )
 
     echo_task = BashOperator(
