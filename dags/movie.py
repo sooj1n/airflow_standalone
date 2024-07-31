@@ -71,9 +71,9 @@ with DAG(
         path = os.path.join(home_dir, f"tmp/test_parquet/load_dt={ds_nodash}")
         #if os.path.exists(f'~/tmp/test_parquet/load_dt={ld}'):
         if os.path.exists(path):
-            return "rm.dir"
+            return "rm.dir" #rmdir.task_id
         else:
-            return "get.data", "echo.task"
+            return "get.start", "echo.task"
 
 
 
@@ -94,9 +94,11 @@ with DAG(
             python_callable=get_data,
             requirements=["git+https://github.com/sooj1n/mov.git@0.2/api"],
             system_site_packages=False,
-            trigger_rule="all_done",
             #venv_cache_path="/home/sujin/tmp2/air_venv/get_data"
     )
+    
+    get_start = EmptyOperator(task_id='get.start', trigger_rule='all_done')
+    get_end = EmptyOperator(task_id='get.end')
 
     task_start= gen_emp('start')
     task_end = gen_emp('end', rule='all_done')
@@ -105,11 +107,10 @@ with DAG(
     multi_n = EmptyOperator(task_id='multi.n') 
     nation_k = EmptyOperator(task_id='nation.k') # 한국영화 
     nation_f = EmptyOperator(task_id='nation.f') # 외국영화
-    
 
 
-    task_join= BashOperator(
-            task_id='join',
+    throw_err= BashOperator(
+            task_id='throw.err',
             bash_command='exit 1',
             trigger_rule="all_done"
     )
@@ -136,11 +137,13 @@ with DAG(
     )
 
     task_start >> branch_op
-    task_start >> task_join >> task_save
+    task_start >> throw_err >> task_save
     
-    branch_op >> rm_dir >> [get_data, multi_y, multi_n, nation_k, nation_f]
-    branch_op >> [get_data, multi_y, multi_n, nation_k, nation_f]
-    branch_op >> echo_task >> task_save
+    rm_dir >> get_start >> [get_data, multi_y, multi_n, nation_k, nation_f] 
 
+    branch_op >> rm_dir 
+    #branch_op >> [get_data, multi_y, multi_n, nation_k, nation_f]
+    branch_op >> get_start
+    branch_op >> echo_task 
 
-    [get_data, multi_y, multi_n, nation_k, nation_f] >> task_save >> task_end
+    [get_data, multi_y, multi_n, nation_k, nation_f] >> get_end >> task_save >> task_end
