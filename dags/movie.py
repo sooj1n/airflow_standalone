@@ -25,12 +25,14 @@ with DAG(
     # These args will get passed on to each operator
     # You can override them on a per-task basis during operator initialization
     default_args={
-        'depends_on_past': True,
+        'depends_on_past': False,
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
-        'retry_delay': timedelta(seconds=3)
+        'retry_delay': timedelta(seconds=3),
     },
+    max_active_runs=1,
+    max_active_tasks=3,
     description='movie',
     schedule_interval=timedelta(days=1),
     start_date=datetime(2024, 7, 24),
@@ -98,6 +100,14 @@ with DAG(
 
     task_start= gen_emp('start')
     task_end = gen_emp('end', rule='all_done')
+
+    multi_y = EmptyOperator(task_id='multi.y') # 다양성 영화 유무
+    multi_n = EmptyOperator(task_id='multi.n') 
+    nation_k = EmptyOperator(task_id='nation.k') # 한국영화 
+    nation_f = EmptyOperator(task_id='nation.f') # 외국영화
+    
+
+
     task_join= BashOperator(
             task_id='join',
             bash_command='exit 1',
@@ -128,9 +138,9 @@ with DAG(
     task_start >> branch_op
     task_start >> task_join >> task_save
     
-    branch_op >> rm_dir >> get_data
-    branch_op >> get_data
+    branch_op >> rm_dir >> [get_data, multi_y, multi_n, nation_k, nation_f]
+    branch_op >> [get_data, multi_y, multi_n, nation_k, nation_f]
     branch_op >> echo_task >> task_save
 
 
-    get_data >> task_save >> task_end
+    [get_data, multi_y, multi_n, nation_k, nation_f] >> task_save >> task_end
