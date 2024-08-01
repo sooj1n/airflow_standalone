@@ -39,43 +39,50 @@ with DAG(
     catchup=True,
     tags=['moviei','api','amt'],
 ) as dag:
-    def get_data(ds_nodash):
-        from mov.api.call import get_key,save2df
-        df,url = save2df(ds_nodash)
-        print(df.head(5))
+    
+#    def get_data(ds_nodash):
+#        from mov.api.call import get_key,save2df
+#        df,url = save2df(ds_nodash)
+#        print(df.head(5))
+#
+#    def fun_multi_y(ds_nodash):
+#        from mov.api.call import save2df
+#        p = {"multiMovieYn" : "Y"}
+#        #df,url = save2df(load_dt=ds_nodash, url_param=p)
+#        df = save2df(load_dt=ds_nodash, url_param=p)
+#        print(df)
+#
+#    def fun_multi_n(ds_nodash):
+#        from mov.api.call import save2df
+#        p = {"multiMovieYn" : "N"}
+#        df = save2df(load_dt=ds_nodash, url_param=p)
+#        print()
+#
+#    def fun_nation_k(ds_nodash):
+#        from mov.api.call import save2df
+#        p = {"repNationCd" : "K"}
+#        df = save2df(load_dt=ds_nodash, url_param=p)
+#        print(df)
+#
+#    def fun_nation_f(ds_nodash):
+#        from mov.api.call import save2df
+#        p = {"repNationCd" : "F"}
+#        df = save2df(load_dt=ds_nodash, url_param=p)
+#        print(df)
+#
 
-    def fun_multi_y(ds_nodash):
+    def common_get_data(dt, url_param={}):
         from mov.api.call import save2df
-        p = {"multiMovieYn" : "Y"}
-        #df,url = save2df(load_dt=ds_nodash, url_param=p)
-        df,url = save2df(load_dt=ds_nodash, url_param=p)
-        print(df.head(5))
-        print(url)
+        df = save2df(load_dt=dt, url_param=url_param)
+        print(df)
+        
+        for k,v in url_param.items():
+            df[k]=v
 
-    def fun_multi_n(ds_nodash):
-        from mov.api.call import save2df
-        p = {"multiMovieYn" : "N"}
-        df,url = save2df(load_dt=ds_nodash, url_param=p)
-        print(df.head(5))
-
-    def fun_nation_k(ds_nodash):
-        from mov.api.call import save2df
-        p = {"repNationCd" : "K"}
-        df,url = save2df(load_dt=ds_nodash, url_param=p)
-        print(df.head(5))
-
-    def fun_nation_f(ds_nodash):
-        from mov.api.call import save2df
-        p = {"repNationCd" : "F"}
-        df,url = save2df(load_dt=ds_nodash, url_param=p)
-        print(df.head(5))
-
-
-    def common_get_data(dt, p={}):
-        from mov.api.call import save2df
-        df,url = save2df(load_dt=dt, url_param=p)
-        print(df.head(5))
-        print(url)
+        p_cols = ['load_dt'] + list(url_param.keys())
+        df.to_parquet('~/tmp/test_parquet', partition_cols=p_cols)
+                # partition_cols=['load_dt', 'movieKey']
+        
         #print(f"load_date: {load_dt}")
         #print(f"dict: {url_param}")
 
@@ -167,7 +174,7 @@ with DAG(
         system_site_packages=False,
         requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
         op_args=["{{ds_nodash}}"],
-        op_kwargs={"p" : {"multiMovieYn": "Y"}}
+        op_kwargs={"url_param" : {"multiMovieYn": "Y"}}
     )
     multi_n = PythonVirtualenvOperator(
         task_id="multi.n",
@@ -175,7 +182,7 @@ with DAG(
         system_site_packages=False,
         requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
         op_args=["{{ds_nodash}}"],
-        op_kwargs={"p" : {"multiMovieYn": "N"}}
+        op_kwargs={"url_param" : {"multiMovieYn": "N"}}
     )
     #한국영화 
     nation_k = PythonVirtualenvOperator(
@@ -184,7 +191,7 @@ with DAG(
         system_site_packages=False,
         requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
         op_args=["{{ds_nodash}}"],
-        op_kwargs={"p" : {"repNationCd": "K"}}
+        op_kwargs={"url_param" : {"repNationCd": "K"}}
     )
 
     nation_f = PythonVirtualenvOperator(
@@ -193,7 +200,7 @@ with DAG(
         system_site_packages=False,
         requirements=["git+https://github.com/sooj1n/mov.git@0.3/api"],
         op_args=["{{ds_nodash}}"],
-        op_kwargs={"p" : {"repNationCd": "F"}}
+        op_kwargs={"url_param" : {"repNationCd": "F"}}
     )
 
     rm_dir = BashOperator(
